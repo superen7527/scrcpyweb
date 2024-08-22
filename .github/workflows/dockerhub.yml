@@ -1,0 +1,36 @@
+name: Docker 编译推送
+on:
+  workflow_dispatch:  # 手动触发
+  push:
+    branches: [ "master" ]  # 当推送到 main 分支时触发
+  pull_request:
+    branches: [ "master" ]  # 当有针对 main 分支的拉取请求时触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置Build环境变量
+        run: |
+          echo "BUILD_IMAGE=superen7527/scrcpyweb" >> $GITHUB_ENV
+          echo "BUILD_PLATFORM=linux/amd64" >> $GITHUB_ENV
+          echo "BUILD_TAG=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+
+      - name: Docker Setup Buildx
+        uses: docker/setup-buildx-action@v2.5.0
+
+      - name: 登录
+        env:
+          SUPAI_USERNAME: ${{ vars.USERNAME }}
+          SUPAI_PASSWORD: ${{ vars.PASSWORD }}
+        run: echo "${SUPAI_PASSWORD}" | docker login --username ${SUPAI_USERNAME} --password-stdin
+
+      - name: Build and Push Docker Image
+        run: |
+          docker buildx build --platform $BUILD_PLATFORM --file Dockerfile \
+            --tag ${BUILD_IMAGE}:latest \
+            --tag ${BUILD_IMAGE}:${BUILD_TAG} \
+            . --push
